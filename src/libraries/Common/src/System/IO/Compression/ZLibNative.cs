@@ -305,6 +305,21 @@ namespace System.IO.Compression
                 }
             }
 
+            public unsafe ErrorCode Reset()
+            {
+                EnsureNotDisposed();
+
+                fixed (ZStream* stream = &_zStream)
+                {
+                    return InitializationState switch
+                    {
+                        State.InitializedForDeflate => Interop.ZLib.DeflateReset(stream),
+                        State.InitializedForInflate => Interop.ZLib.InflateReset(stream),
+                        _ => ErrorCode.StreamError
+                    };
+                }
+            }
+
             // This can work even after XxflateEnd().
             public string GetErrorMessage() => _zStream.msg != ZNullPtr ? Marshal.PtrToStringUTF8(_zStream.msg)! : string.Empty;
         }

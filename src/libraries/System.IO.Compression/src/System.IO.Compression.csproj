@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>$(NetCoreAppCurrent)-windows;$(NetCoreAppCurrent)-unix;$(NetCoreAppCurrent)-browser;$(NetCoreAppCurrent)-wasi;$(NetCoreAppCurrent)</TargetFrameworks>
@@ -36,6 +36,8 @@
     <Compile Include="System\IO\Compression\DeflateZLib\DeflateStream.cs" />
     <Compile Include="System\IO\Compression\DeflateZLib\Inflater.cs" />
     <Compile Include="System\IO\Compression\DeflateZLib\ZLibException.cs" />
+    <Compile Include="System\IO\Compression\DeflateZLib\ZLibStreamHandlePool.cs" />
+    <Compile Include="System\IO\Compression\DeflateZLib\ZLibStreamHandlePoolGroup.cs" />
     <Compile Include="$(CommonPath)System\IO\Compression\ZLibNative.cs"
              Link="Common\System\IO\Compression\ZLibNative.cs" />
     <Compile Include="$(CommonPath)System\IO\Compression\ZLibNative.CompressionLevel.cs"

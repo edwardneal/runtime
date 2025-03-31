@@ -38,7 +38,7 @@ namespace System.IO.Compression
             _nonEmptyInput = false;
             _isDisposed = false;
             _windowBits = windowBits;
-            InflateInit(windowBits);
+            _zlibStream = ZLibStreamHandlePoolGroup.Shared.RentZLibStreamForInflate(windowBits);
             _uncompressedSize = uncompressedSize;
         }
 
@@ -115,7 +115,7 @@ namespace System.IO.Compression
                 // Before returning, make sure to release input buffer if necessary:
                 if (0 == _zlibStream.AvailIn && IsInputBufferHandleAllocated)
                 {
-                    DeallocateInputBufferHandle();
+                    DeallocateInputBufferHandle(true);
                 }
             }
         }
@@ -149,8 +149,7 @@ namespace System.IO.Compression
 
             lock (SyncLock)
             {
-                IntPtr nextInPtr = _zlibStream.NextIn;
-                byte* nextInPointer = (byte*)nextInPtr.ToPointer();
+                byte* nextInPointer = (byte*)_zlibStream.NextIn;
                 uint nextAvailIn = _zlibStream.AvailIn;
 
                 // Check the leftover bytes to see if they start with he gzip header ID bytes
@@ -159,15 +158,9 @@ namespace System.IO.Compression
                     return true;
                 }
 
-                // Trash our existing zstream.
-                _zlibStream.Dispose();
+                // Reset our existing zstream.
+                _zlibStream.Reset();
 
-                // Create a new zstream
-                InflateInit(_windowBits);
-
-                // SetInput on the new stream to the bits remaining from the last stream
-                _zlibStream.NextIn = nextInPtr;
-                _zlibStream.AvailIn = nextAvailIn;
                 _finished = false;
             }
 
@@ -213,10 +206,14 @@ namespace System.IO.Compression
             if (!_isDisposed)
             {
                 if (disposing)
-                    _zlibStream.Dispose();
+                {
+                    ZLibStreamHandlePoolGroup.Shared.ReturnZLibStreamForInflate(_zlibStream, _windowBits);
+                }
 
                 if (IsInputBufferHandleAllocated)
-                    DeallocateInputBufferHandle();
+                {
+                    DeallocateInputBufferHandle(false);
+                }
 
                 _isDisposed = true;
             }
@@ -231,41 +228,6 @@ namespace System.IO.Compression
         ~Inflater()
         {
             Dispose(false);
-        }
-
-        /// <summary>
-        /// Creates the ZStream that will handle inflation.
-        /// </summary>
-        [MemberNotNull(nameof(_zlibStream))]
-        private void InflateInit(int windowBits)
-        {
-            ZLibNative.ErrorCode error;
-            try
-            {
-                error = ZLibNative.CreateZLibStreamForInflate(out _zlibStream, windowBits);
-            }
-            catch (Exception exception) // could not load the ZLib dll
-            {
-                throw new ZLibException(SR.ZLibErrorDLLLoadError, exception);
-            }
-
-            switch (error)
-            {
-                case ZLibNative.ErrorCode.Ok:           // Successful initialization
-                    return;
-
-                case ZLibNative.ErrorCode.MemError:     // Not enough memory
-                    throw new ZLibException(SR.ZLibErrorNotEnoughMemory, "inflateInit2_", (int)error, _zlibStream.GetErrorMessage());
-
-                case ZLibNative.ErrorCode.VersionError: //zlib library is incompatible with the version assumed
-                    throw new ZLibException(SR.ZLibErrorVersionMismatch, "inflateInit2_", (int)error, _zlibStream.GetErrorMessage());
-
-                case ZLibNative.ErrorCode.StreamError:  // Parameters are invalid
-                    throw new ZLibException(SR.ZLibErrorIncorrectInitParameters, "inflateInit2_", (int)error, _zlibStream.GetErrorMessage());
-
-                default:
-                    throw new ZLibException(SR.ZLibErrorUnexpected, "inflateInit2_", (int)error, _zlibStream.GetErrorMessage());
-            }
         }
 
         /// <summary>
@@ -325,14 +287,17 @@ namespace System.IO.Compression
         /// <summary>
         /// Frees the GCHandle being used to store the input buffer
         /// </summary>
-        private void DeallocateInputBufferHandle()
+        private void DeallocateInputBufferHandle(bool updateZStreamState)
         {
             Debug.Assert(IsInputBufferHandleAllocated);
 
             lock (SyncLock)
             {
-                _zlibStream.AvailIn = 0;
-                _zlibStream.NextIn = ZLibNative.ZNullPtr;
+                if (updateZStreamState)
+                {
+                    _zlibStream.AvailIn = 0;
+                    _zlibStream.NextIn = ZLibNative.ZNullPtr;
+                }
                 _inputBufferHandle.Dispose();
             }
         }

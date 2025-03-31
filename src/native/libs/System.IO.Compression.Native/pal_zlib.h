@@ -103,6 +103,14 @@ Returns a PAL_ErrorCode indicating success or an error number on failure.
 FUNCTIONEXPORT int32_t FUNCTIONCALLINGCONVENTION CompressionNative_DeflateEnd(PAL_ZStream* stream);
 
 /*
+This function is equivalent to DeflateEnd followed by DeflateInit, but does not free and reallocate 
+the internal compression state.
+
+Returns a PAL_ErrorCode indicating success or an error number on failure.
+*/
+FUNCTIONEXPORT int32_t FUNCTIONCALLINGCONVENTION CompressionNative_DeflateReset(PAL_ZStream* stream);
+
+/*
 Initializes the PAL_ZStream so the Inflate function can be invoked on it.
 
 Returns a PAL_ErrorCode indicating success or an error number on failure.
@@ -123,6 +131,14 @@ All dynamically allocated data structures for this stream are freed.
 Returns a PAL_ErrorCode indicating success or an error number on failure.
 */
 FUNCTIONEXPORT int32_t FUNCTIONCALLINGCONVENTION CompressionNative_InflateEnd(PAL_ZStream* stream);
+
+/*
+This function is equivalent to InflateEnd followed by InflateInit, but does not free and reallocate 
+the internal decompression state.
+
+Returns a PAL_ErrorCode indicating success or an error number on failure.
+*/
+FUNCTIONEXPORT int32_t FUNCTIONCALLINGCONVENTION CompressionNative_InflateReset(PAL_ZStream* stream);
 
 /*
 Update a running CRC-32 with the bytes buffer[0..len-1] and return the
